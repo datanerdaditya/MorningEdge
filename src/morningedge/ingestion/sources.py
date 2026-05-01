@@ -52,20 +52,20 @@ class Source:
 # ---------------------------------------------------------------------------
 
 SOURCES: list[Source] = [
-    # --- Tier 1: Wire services and major outlets ---
+    # --- Tier 1: Wire-style coverage ---
     Source(
-        id="reuters_business",
-        name="Reuters — Business",
-        url="https://feeds.reuters.com/reuters/businessNews",
+        id="investing_news",
+        name="Investing.com — News",
+        url="https://www.investing.com/rss/news.rss",
         tier=SourceTier.TIER_1,
-        default_assets=["us_macro", "banks", "risk_equity"],
+        default_assets=["us_macro", "rates", "risk_equity"],
     ),
     Source(
-        id="reuters_markets",
-        name="Reuters — Markets",
-        url="https://feeds.reuters.com/news/wealth",
+        id="marketwatch_top",
+        name="MarketWatch — Top Stories",
+        url="https://feeds.content.dowjones.io/public/rss/mw_topstories",
         tier=SourceTier.TIER_1,
-        default_assets=["rates", "high_yield", "risk_equity"],
+        default_assets=["us_macro", "risk_equity", "banks"],
     ),
     Source(
         id="ft_alphaville",
@@ -96,14 +96,14 @@ SOURCES: list[Source] = [
         tier=SourceTier.TIER_1,
         default_assets=["rates", "europe_macro"],
     ),
-    # --- Tier 2: Specialist / sector-relevant ---
     Source(
-        id="treasury_news",
-        name="US Treasury — Press Releases",
-        url="https://home.treasury.gov/system/files/126/feed.xml",
-        tier=SourceTier.TIER_2,
-        default_assets=["rates", "us_macro"],
+        id="fred_blog",
+        name="FRED Blog (St. Louis Fed)",
+        url="https://fredblog.stlouisfed.org/feed/",
+        tier=SourceTier.TIER_1,
+        default_assets=["us_macro", "rates"],
     ),
+    # --- Tier 2: Specialist / sector-relevant ---
     Source(
         id="sec_8k",
         name="SEC EDGAR — Recent 8-K Filings",
@@ -111,12 +111,12 @@ SOURCES: list[Source] = [
         tier=SourceTier.TIER_2,
         default_assets=["banks", "tech", "energy", "healthcare"],
     ),
-    # --- Tier 2: Aggregators with decent credit coverage ---
+    # --- Tier 3: Aggregators ---
     Source(
         id="seeking_alpha_credit",
         name="Seeking Alpha — Bonds & Fixed Income",
         url="https://seekingalpha.com/feed.xml",
-        tier=SourceTier.TIER_3,  # downgraded — quality is uneven
+        tier=SourceTier.TIER_3,
         default_assets=["high_yield", "rates"],
     ),
     Source(
