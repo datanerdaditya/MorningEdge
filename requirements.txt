@@ -19,7 +19,7 @@ hdbscan>=0.8.33           # narrative clustering
 scikit-learn>=1.4.0       # cosine similarity, etc.
 
 # --- LLM (Gemini) ---
-google-generativeai>=0.7.0
+google-genai>=1.0.0
 
 # --- Storage ---
 duckdb>=0.10.0
