@@ -79,14 +79,6 @@ cp .env.example .env
 streamlit run src/morningedge/dashboard/app.py
 ```
 
-## Inspiration
-
-The original spark for this project came from
-[finance-ai-stack-01-news-sentiment](https://github.com/khandelwalharshit1307/finance-ai-stack-01-news-sentiment)
-by Harshit Khandelwal. MorningEdge takes the core idea — quantifying news
-sentiment across asset classes — and rebuilds it as a deeper, AI-native
-pipeline focused on leveraged finance.
-
 ## License
 
 MIT — see [LICENSE](LICENSE).
