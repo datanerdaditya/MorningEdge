@@ -1,16 +1,32 @@
 name: Daily Pipeline
 
 on:
+  # 06:30 UTC = 07:30 Paris (winter) / 08:30 (summer).
+  # Adjust the cron later if you want it earlier/later.
   schedule:
-    # 06:30 UTC = 07:30 Paris (winter) / 08:30 (summer). Adjust later if needed.
     - cron: "30 6 * * *"
-  workflow_dispatch:  # allow manual runs
+  # Allow manual runs from the Actions tab
+  workflow_dispatch:
+
+# Prevent concurrent runs — if a run is in progress, skip the next one
+concurrency:
+  group: daily-pipeline
+  cancel-in-progress: false
 
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    permissions:
+      contents: write   # needed to push to the data branch
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -24,11 +40,118 @@ jobs:
           pip install -r requirements.txt
           pip install -e .
 
+      - name: Cache HuggingFace models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-models-v1
+
+      - name: Pull existing DB from data branch
+        run: |
+          mkdir -p data
+          # Try to fetch the data branch. If it doesn't exist yet, we start fresh.
+          if git ls-remote --exit-code origin data &>/dev/null; then
+            git fetch origin data
+            git show origin/data:data/morningedge.duckdb > data/morningedge.duckdb || true
+            echo "Pulled existing DB from data branch"
+          else
+            echo "No data branch yet — starting with empty DB"
+          fi
+
       - name: Run pipeline
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
-          MARKETAUX_API_KEY: ${{ secrets.MARKETAUX_API_KEY }}
-        run: python scripts/run_pipeline.py
+          HUGGINGFACE_HUB_TOKEN: ${{ secrets.HUGGINGFACE_HUB_TOKEN }}
+        run: |
+          python scripts/run_pipeline.py
 
-      # Week 4 will add: commit DuckDB updates back, or push to a release artifact.
+      - name: Backfill embeddings (idempotent — only fills NULLs)
+        env:
+          HUGGINGFACE_HUB_TOKEN: ${{ secrets.HUGGINGFACE_HUB_TOKEN }}
+        run: python scripts/backfill_embeddings.py
+
+      - name: Cluster narratives
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          HUGGINGFACE_HUB_TOKEN: ${{ secrets.HUGGINGFACE_HUB_TOKEN }}
+        run: python scripts/cluster_narratives.py
+
+      - name: Generate daily brief
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          HUGGINGFACE_HUB_TOKEN: ${{ secrets.HUGGINGFACE_HUB_TOKEN }}
+        # Don't fail the whole workflow if Gemini quota is exhausted
+        continue-on-error: true
+        run: python scripts/generate_brief.py
+
+      - name: Status snapshot
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, 'src')
+          from morningedge.storage.db import connect
+          from datetime import datetime, timezone
+          with connect() as conn:
+              total = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
+              enriched = conn.execute('SELECT COUNT(*) FROM articles WHERE enriched_at IS NOT NULL').fetchone()[0]
+              briefs = conn.execute('SELECT COUNT(*) FROM briefs').fetchone()[0]
+              print(f'Articles: {total}, Enriched: {enriched}, Briefs persisted: {briefs}')
+              with open('data/STATUS.md', 'w') as f:
+                  f.write(f'# MorningEdge data status\n\n')
+                  f.write(f'Last updated: {datetime.now(timezone.utc).isoformat()}\n\n')
+                  f.write(f'- Articles: {total}\n')
+                  f.write(f'- Enriched: {enriched}\n')
+                  f.write(f'- Briefs persisted: {briefs}\n')
+          "
+
+      - name: Commit data to data branch
+        run: |
+          git config user.name  "morningedge-bot"
+          git config user.email "bot@morningedge.local"
+
+          # Stash freshly-built files outside the repo before switching branches
+          mkdir -p /tmp/me-data
+          cp -f data/morningedge.duckdb /tmp/me-data/ 2>/dev/null || true
+          cp -f data/STATUS.md          /tmp/me-data/ 2>/dev/null || true
+
+          # Confirm we have something to commit
+          if [ ! -f /tmp/me-data/morningedge.duckdb ]; then
+            echo "ERROR: No DuckDB file produced by pipeline. Aborting commit."
+            exit 1
+          fi
+
+          # Create or switch to the data branch
+          if git ls-remote --exit-code origin data >/dev/null 2>&1; then
+            git fetch origin data
+            git switch data
+          else
+            git switch --orphan data
+            # Wipe the inherited working tree
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+
+          # Restore the stashed artifacts
+          mkdir -p data
+          cp -f /tmp/me-data/morningedge.duckdb data/
+          cp -f /tmp/me-data/STATUS.md          data/ 2>/dev/null || true
+
+          # Add a tiny readme so people landing on the branch know what it is
+          cat > README.md <<'EOF'
+          # MorningEdge data branch
+
+          This branch holds the daily-updated DuckDB snapshot of MorningEdge's
+          enriched news data. It is rebuilt nightly by the GitHub Actions workflow
+          and consumed by the deployed Streamlit dashboard.
+
+          Do not commit code to this branch.
+          EOF
+
+          git add README.md data/
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Daily update: $(date -u +%Y-%m-%d)"
+            git push origin data
+            echo "Pushed data branch"
+          fi
