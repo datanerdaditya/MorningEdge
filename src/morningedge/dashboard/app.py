@@ -15,26 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import streamlit as st
 
-# ---------------------------------------------------------------------------
-# Bootstrap data — download latest DuckDB from the data branch if needed
-# ---------------------------------------------------------------------------
-
 from morningedge.config import settings
 from morningedge.dashboard.bootstrap import ensure_db_available
-
-
-@st.cache_resource
-def _bootstrap_data():
-    """One-time data download on cold start. Cached for the session."""
-    return ensure_db_available(settings.duckdb_path)
-
-
-_bootstrap_data()
-
-# ---------------------------------------------------------------------------
-
-import streamlit as st
-
 from morningedge.dashboard.queries import (
     all_asset_class_summaries,
     latest_narratives,
@@ -48,6 +30,19 @@ from morningedge.dashboard.views import (
     render_entities_page,
 )
 from morningedge.taxonomy import TAXONOMY, by_tier
+
+# ---------------------------------------------------------------------------
+# Bootstrap data — download latest DuckDB from the data branch if needed
+# ---------------------------------------------------------------------------
+
+
+@st.cache_resource
+def _bootstrap_data():
+    """One-time data download on cold start. Cached for the session."""
+    return ensure_db_available(settings.duckdb_path)
+
+
+_bootstrap_data()
 
 # ---------------------------------------------------------------------------
 # Page setup

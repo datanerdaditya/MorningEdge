@@ -17,7 +17,6 @@ from pathlib import Path
 import httpx
 from loguru import logger
 
-
 # Public URL to the daily-updated DuckDB on the ``data`` branch.
 REMOTE_DB_URL = (
     "https://raw.githubusercontent.com/datanerdaditya/MorningEdge/"
