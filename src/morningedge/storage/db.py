@@ -8,10 +8,10 @@ business logic and makes future migrations painless.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterator
 
 import duckdb
 from loguru import logger
@@ -19,7 +19,6 @@ from loguru import logger
 from morningedge.config import settings
 from morningedge.ingestion.models import Article
 from morningedge.storage.schema import ALL_DDL
-
 
 # ---------------------------------------------------------------------------
 # Connection management
@@ -132,7 +131,7 @@ def recent_articles(
             [limit],
         ).fetchall()
         cols = [desc[0] for desc in conn.description]
-        return [dict(zip(cols, row)) for row in rows]
+        return [dict(zip(cols, row, strict=False)) for row in rows]
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +175,7 @@ def get_unenriched_articles(
             [limit],
         ).fetchall()
         cols = [desc[0] for desc in conn.description]
-        return [dict(zip(cols, row)) for row in rows]
+        return [dict(zip(cols, row, strict=False)) for row in rows]
 
 
 def write_enrichments(
@@ -196,13 +195,12 @@ def write_enrichments(
 
     Routings live in their own table — write them via ``write_routings``.
     """
-    import json
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     if not enrichments:
         return 0
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     with connect(db_path) as conn:
         for e in enrichments:
@@ -342,9 +340,8 @@ def write_narratives(
     if not narratives:
         return 0
 
-    from datetime import datetime, timezone
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     with connect(db_path) as conn:
         # Drop any existing narratives for these cluster_ids — idempotent re-runs
@@ -386,9 +383,9 @@ def get_articles_for_clustering(
 
     Returns list of dicts with: article_id, title, description, routings (list).
     """
-    from datetime import datetime, timedelta, timezone
+    from datetime import timedelta
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    cutoff = datetime.now(UTC) - timedelta(days=days_back)
 
     with connect(db_path) as conn:
         rows = conn.execute(

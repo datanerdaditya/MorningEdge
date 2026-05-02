@@ -1,6 +1,6 @@
 """Smoke tests for the ingestion data models."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from morningedge.ingestion.models import Article, SourceTier, make_article_id
 
@@ -28,7 +28,7 @@ def test_article_normalises_title_whitespace():
         canonical_url="https://x.com/1",
         source_id="reuters_business",
         source_tier=SourceTier.TIER_1,
-        published_at=datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc),
+        published_at=datetime(2026, 5, 1, 12, 0, tzinfo=UTC),
     )
     assert a.title == "Fed holds rates steady"
 

@@ -6,7 +6,6 @@ engineering visible and version-controllable.
 
 from __future__ import annotations
 
-
 # ---------------------------------------------------------------------------
 # RAG chat (Day 12)
 # ---------------------------------------------------------------------------

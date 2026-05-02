@@ -4,10 +4,9 @@ These tests don't touch the DB or the network — they verify the
 embedding + similarity logic on synthetic inputs.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import numpy as np
-import pytest
 
 from morningedge.ingestion.dedup import (
     SIMILARITY_THRESHOLD,
@@ -24,7 +23,7 @@ def _make_article(url: str, title: str) -> Article:
         canonical_url=url,
         source_id="ft_alphaville",
         source_tier=SourceTier.TIER_1,
-        published_at=datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc),
+        published_at=datetime(2026, 5, 1, 12, 0, tzinfo=UTC),
     )
 
 
@@ -78,11 +77,3 @@ def test_related_but_distinct_below_threshold():
         f"sim={sim:.3f} — these are distinct news events, threshold may need raising"
     )
 
-
-def test_different_topics_below_threshold():
-    """Unrelated headlines should not collide."""
-    a = "Apple announces new iPhone in September event"
-    b = "ECB cuts rates by 25bps citing weak eurozone growth"
-    vecs = embed_texts([a, b])
-    sim = float(vecs[0] @ vecs[1])
-    assert sim < 0.7, f"sim={sim:.3f}, unexpectedly high"

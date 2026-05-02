@@ -18,7 +18,7 @@ second on the remaining new articles) keeps the pipeline fast.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 
 import numpy as np
@@ -92,7 +92,7 @@ def _recent_titles_with_embeddings(
     For articles without a cached embedding (fresh DB), we compute on
     the fly. Future runs will hit the cache.
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
 
     with connect() as conn:
         rows = conn.execute(
@@ -107,16 +107,16 @@ def _recent_titles_with_embeddings(
     if not rows:
         return [], np.zeros((0, EMBEDDING_DIM), dtype=np.float32)
     
-    ids, titles, raw_embeddings = zip(*rows)
+    ids, titles, raw_embeddings = zip(*rows, strict=False)
 
     # Some rows may have NULL embeddings (older articles, pre-Day 4 data).
     # We embed those on demand and persist for next time.
-    needs_embed = [(i, t) for i, (rid, t, e) in enumerate(zip(ids, titles, raw_embeddings)) if e is None]
+    needs_embed = [(i, t) for i, (rid, t, e) in enumerate(zip(ids, titles, raw_embeddings, strict=False)) if e is None]
     cached = [_decode_embedding(e) if e else None for e in raw_embeddings]
 
     if needs_embed:
         new_vecs = embed_texts([t for _, t in needs_embed])
-        for (i, _), vec in zip(needs_embed, new_vecs):
+        for (i, _), vec in zip(needs_embed, new_vecs, strict=False):
             cached[i] = vec
         # Persist them so we don't re-embed next run
         _save_embeddings(
@@ -146,7 +146,7 @@ def _save_embeddings(article_ids: list[str], vectors: list[np.ndarray]) -> None:
         return
     import json
     with connect() as conn:
-        for aid, vec in zip(article_ids, vectors):
+        for aid, vec in zip(article_ids, vectors, strict=False):
             conn.execute(
                 "UPDATE articles SET embedding = ? WHERE article_id = ?",
                 [json.dumps(vec.tolist()), aid],
@@ -180,7 +180,7 @@ def fuzzy_dedupe(articles: list[Article]) -> list[Article]:
     keep_vecs: list[np.ndarray] = []
     dropped = 0
 
-    for article, vec in zip(articles, candidate_vecs):
+    for article, vec in zip(articles, candidate_vecs, strict=False):
         # Compare to existing DB articles
         if existing_vecs.shape[0] > 0:
             sims_existing = existing_vecs @ vec

@@ -30,7 +30,7 @@ import numpy as np
 from loguru import logger
 
 from morningedge.ingestion.dedup import embed_texts
-from morningedge.taxonomy import AssetClass, TAXONOMY
+from morningedge.taxonomy import TAXONOMY, AssetClass
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -121,7 +121,7 @@ def _select_routings(
     """Filter by threshold, sort, cap at top K."""
     candidates = [
         Routing(asset_class_id=ac.id, score=float(sim))
-        for ac, sim in zip(classes, similarities)
+        for ac, sim in zip(classes, similarities, strict=False)
         if float(sim) >= ROUTING_THRESHOLD
     ]
     candidates.sort(key=lambda r: r.score, reverse=True)

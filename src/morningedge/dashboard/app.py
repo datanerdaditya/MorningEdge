@@ -29,7 +29,6 @@ from morningedge.dashboard.views import (
 )
 from morningedge.taxonomy import TAXONOMY, by_tier
 
-
 # ---------------------------------------------------------------------------
 # Page setup
 # ---------------------------------------------------------------------------
@@ -186,14 +185,14 @@ else:
     # Hero tier
     st.markdown("## Hero — Leveraged Finance & Private Credit")
     hero_cols = st.columns(4)
-    for col, ac in zip(hero_cols, by_tier("hero")):
+    for col, ac in zip(hero_cols, by_tier("hero"), strict=False):
         with col:
             _render_class_card(summaries[ac.id])
 
     # Macro tier
     st.markdown("## Macro Context")
     macro_cols = st.columns(3)
-    for col, ac in zip(macro_cols, by_tier("macro")):
+    for col, ac in zip(macro_cols, by_tier("macro"), strict=False):
         with col:
             _render_class_card(summaries[ac.id])
 
@@ -203,7 +202,7 @@ else:
         for i in range(0, len(breadth), 4):
             row = breadth[i : i + 4]
             cols = st.columns(4)
-            for col, ac in zip(cols, row):
+            for col, ac in zip(cols, row, strict=False):
                 with col:
                     _render_class_card(summaries[ac.id])
 

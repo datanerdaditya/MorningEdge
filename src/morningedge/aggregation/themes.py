@@ -18,7 +18,6 @@ from loguru import logger
 
 from morningedge.llm.gemini import MODEL_FLASH_LITE, call_gemini
 
-
 # ---------------------------------------------------------------------------
 # Result type
 # ---------------------------------------------------------------------------

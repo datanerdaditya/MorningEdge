@@ -10,9 +10,8 @@ high stakes, worth the smarter model.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from loguru import logger
 
@@ -24,7 +23,6 @@ from morningedge.dashboard.queries import (
 )
 from morningedge.llm.gemini import MODEL_PRO, _bump_quota, _get_client, _wait_for_quota
 from morningedge.storage.db import connect
-
 
 # ---------------------------------------------------------------------------
 # Result type
@@ -59,7 +57,7 @@ def _gather_context(days_back: int = 1) -> dict:
     )
 
     # Top bullish + bearish articles
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    cutoff = datetime.now(UTC) - timedelta(days=days_back)
     with connect() as conn:
         bull_rows = conn.execute(
             """
@@ -337,7 +335,7 @@ def _extract_headline(body: str) -> str:
 
 
 def _persist_brief(brief: Brief) -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with connect() as conn:
         # Idempotent re-runs: replace today's brief
         conn.execute("DELETE FROM briefs WHERE brief_date = ?", [brief.brief_date])

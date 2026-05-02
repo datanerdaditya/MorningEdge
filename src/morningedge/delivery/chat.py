@@ -14,18 +14,17 @@ and we tell it not to use outside knowledge.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Iterable
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
 from loguru import logger
 
 from morningedge.ingestion.dedup import embed_texts
-from morningedge.llm.gemini import MODEL_FLASH, _get_client, _wait_for_quota, _bump_quota
+from morningedge.llm.gemini import MODEL_FLASH, _bump_quota, _get_client, _wait_for_quota
 from morningedge.llm.prompts import RAG_SYSTEM, RAG_USER_TEMPLATE
 from morningedge.storage.db import connect
-
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -69,7 +68,7 @@ def retrieve(
         return []
 
     q_vec = embed_texts([question])[0]
-    cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+    cutoff = datetime.now(UTC) - timedelta(days=lookback_days)
 
     with connect() as conn:
         rows = conn.execute(
@@ -93,10 +92,7 @@ def retrieve(
             continue
         try:
             # DuckDB returns the JSON column as a string; parse it first.
-            if isinstance(emb_json, str):
-                emb_data = json.loads(emb_json)
-            else:
-                emb_data = emb_json
+            emb_data = json.loads(emb_json) if isinstance(emb_json, str) else emb_json
             vec = np.asarray(emb_data, dtype=np.float32)
             sim = float(vec @ q_vec)
             candidates.append((sim, aid, title, desc, source, url, pub, sent))

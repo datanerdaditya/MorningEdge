@@ -24,17 +24,11 @@ from morningedge.dashboard.queries import (
 from morningedge.dashboard.styling import (
     ACCENT_GOLD,
     BG_PRIMARY,
-    BG_SECONDARY,
     BG_TERTIARY,
-    NEGATIVE,
-    POSITIVE,
     TEXT_MUTED,
-    TEXT_PRIMARY,
     TEXT_SECONDARY,
-    sentiment_color,
 )
-from morningedge.taxonomy import AssetClass, by_id
-
+from morningedge.taxonomy import by_id
 
 # ---------------------------------------------------------------------------
 # Asset class detail page
@@ -265,7 +259,7 @@ def render_chat_page(lookback_days: int = 7) -> None:
     ]
     st.caption("Try one of these:")
     sample_cols = st.columns(len(samples))
-    for col, q in zip(sample_cols, samples):
+    for col, q in zip(sample_cols, samples, strict=False):
         if col.button(q, key=f"sample_{q}", use_container_width=True):
             st.session_state.pending_question = q
 
@@ -347,7 +341,6 @@ def render_chat_page(lookback_days: int = 7) -> None:
 
 def render_brief_page() -> None:
     """Today's morning brief, with a button to regenerate."""
-    from datetime import date as _date
 
     from morningedge.delivery.brief import generate_brief, get_latest_brief
 

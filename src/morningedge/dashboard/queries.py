@@ -6,13 +6,12 @@ DataFrame or a plain dict — easy to render in Streamlit.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 
 from morningedge.storage.db import connect
-from morningedge.taxonomy import TAXONOMY, AssetClass, by_tier
-
+from morningedge.taxonomy import TAXONOMY
 
 # ---------------------------------------------------------------------------
 # Top-level summary
@@ -21,7 +20,7 @@ from morningedge.taxonomy import TAXONOMY, AssetClass, by_tier
 
 def overall_summary(days_back: int = 1) -> dict:
     """High-level numbers for the regime banner."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    cutoff = datetime.now(UTC) - timedelta(days=days_back)
 
     with connect() as conn:
         row = conn.execute(
@@ -54,7 +53,7 @@ def overall_summary(days_back: int = 1) -> dict:
 
 def asset_class_summary(asset_class_id: str, days_back: int = 1) -> dict:
     """Aggregate stats for one asset class."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    cutoff = datetime.now(UTC) - timedelta(days=days_back)
 
     with connect() as conn:
         row = conn.execute(
@@ -136,7 +135,7 @@ def top_narrative_for_class(asset_class_id: str) -> dict | None:
 
 def articles_for_class(asset_class_id: str, limit: int = 50, days_back: int = 2) -> pd.DataFrame:
     """Recent articles routed to one asset class, sorted by sentiment magnitude."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    cutoff = datetime.now(UTC) - timedelta(days=days_back)
 
     with connect() as conn:
         rows = conn.execute(
@@ -177,7 +176,7 @@ def regime_label(avg_sentiment: float) -> str:
 
 def sentiment_timeline_for_class(asset_class_id: str, days_back: int = 7) -> pd.DataFrame:
     """Daily average sentiment for one asset class. Used for the line chart."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    cutoff = datetime.now(UTC) - timedelta(days=days_back)
 
     with connect() as conn:
         rows = conn.execute(
@@ -210,7 +209,7 @@ def top_entities_for_class(
     DuckDB lets us crack the JSON 'entities' column inline. We expand
     each entity to its own row, then group + count.
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    cutoff = datetime.now(UTC) - timedelta(days=days_back)
     label_clause = ""
     params = [asset_class_id, cutoff]
     if label_filter:
@@ -258,7 +257,7 @@ def top_entities_for_class(
 
 def event_breakdown_for_class(asset_class_id: str, days_back: int = 2) -> pd.DataFrame:
     """Distribution of event types within one asset class."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    cutoff = datetime.now(UTC) - timedelta(days=days_back)
 
     with connect() as conn:
         rows = conn.execute(
@@ -286,7 +285,7 @@ def global_top_entities(
     limit: int = 25,
 ) -> pd.DataFrame:
     """Top entities across all asset classes."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    cutoff = datetime.now(UTC) - timedelta(days=days_back)
     label_clause = ""
     params: list = [cutoff]
     if label_filter:

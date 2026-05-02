@@ -18,7 +18,6 @@ Cluster IDs are local to the asset class — "rates_0", "rates_1", "tech_0"
 
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass
 
 import hdbscan
@@ -26,7 +25,6 @@ import numpy as np
 from loguru import logger
 
 from morningedge.ingestion.dedup import embed_texts
-
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -107,7 +105,7 @@ def cluster_within_asset_class(
     labels = clusterer.fit_predict(embeddings)
 
     assignments: list[ClusterAssignment] = []
-    for aid, label in zip(article_ids, labels):
+    for aid, label in zip(article_ids, labels, strict=False):
         cluster_id = (
             f"{asset_class}_noise" if label == -1 else f"{asset_class}_{label}"
         )

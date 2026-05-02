@@ -6,7 +6,6 @@ specific test cases pass — if you change the threshold, expect to
 adjust these.
 """
 
-import pytest
 
 from morningedge.enrichment.router import (
     MAX_ASSIGNMENTS,
@@ -94,8 +93,8 @@ def test_batch_matches_individual():
     individual = [route_text(t) for t in texts]
     batched = route_texts(texts)
 
-    for i, b in zip(individual, batched):
+    for i, b in zip(individual, batched, strict=False):
         assert len(i) == len(b)
-        for ri, rb in zip(i, b):
+        for ri, rb in zip(i, b, strict=False):
             assert ri.asset_class_id == rb.asset_class_id
             assert abs(ri.score - rb.score) < 1e-5

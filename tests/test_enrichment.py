@@ -4,11 +4,9 @@ These load real models (GLiNER + BART-MNLI). First run downloads
 ~1.7GB total. Subsequent runs are cached.
 """
 
-import pytest
 
-from morningedge.enrichment.entities import Entity, extract_entities
-from morningedge.enrichment.events import EVENT_TYPES, EventResult, classify_event
-
+from morningedge.enrichment.entities import extract_entities
+from morningedge.enrichment.events import EVENT_TYPES, classify_event
 
 # ---------------------------------------------------------------------------
 # Entity extraction

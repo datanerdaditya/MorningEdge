@@ -1,6 +1,6 @@
 """Tests for the DuckDB storage layer."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -30,7 +30,7 @@ def _make_article(url: str, title: str = "Test headline") -> Article:
         canonical_url=url,
         source_id="ft_alphaville",
         source_tier=SourceTier.TIER_1,
-        published_at=datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc),
+        published_at=datetime(2026, 5, 1, 12, 0, tzinfo=UTC),
     )
 
 

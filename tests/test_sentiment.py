@@ -5,7 +5,6 @@ subsequent runs are fast. We use a small set of clearly-signed financial
 headlines to verify the model gives sensible outputs.
 """
 
-import pytest
 
 from morningedge.enrichment.sentiment import (
     SentimentResult,

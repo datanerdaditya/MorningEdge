@@ -56,7 +56,7 @@ class SentimentResult:
     p_negative: float
 
     @classmethod
-    def null(cls) -> "SentimentResult":
+    def null(cls) -> SentimentResult:
         """Sentinel returned when scoring fails for an article."""
         return cls(0.0, "neutral", 0.0, 1.0, 0.0)
 
@@ -98,7 +98,7 @@ def score_texts(texts: list[str]) -> list[SentimentResult]:
     if not valid_pairs:
         return results
 
-    indices, valid_texts = zip(*valid_pairs)
+    indices, valid_texts = zip(*valid_pairs, strict=False)
 
     # Batch through the model
     with torch.no_grad():
@@ -165,7 +165,7 @@ def score_articles_batch(
         desc_results[idx] = desc_results_partial[i]
 
     blended: list[SentimentResult] = []
-    for tr, dr in zip(title_results, desc_results):
+    for tr, dr in zip(title_results, desc_results, strict=False):
         if dr is None:
             blended.append(tr)
         else:

@@ -18,7 +18,7 @@ Design notes
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import feedparser
@@ -35,7 +35,6 @@ from tenacity import (
 from morningedge.ingestion.models import (
     Article,
     RawArticle,
-    SourceTier,
     make_article_id,
 )
 from morningedge.ingestion.sources import Source, all_sources
@@ -183,7 +182,7 @@ def _parse_published(entry: dict) -> datetime | None:
     parsed = entry.get("published_parsed") or entry.get("updated_parsed")
     if parsed:
         try:
-            return datetime(*parsed[:6], tzinfo=timezone.utc)
+            return datetime(*parsed[:6], tzinfo=UTC)
         except (TypeError, ValueError):
             pass
 
@@ -192,7 +191,7 @@ def _parse_published(entry: dict) -> datetime | None:
     if raw:
         try:
             dt = dateparser.parse(raw)
-            return dt.astimezone(timezone.utc) if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(UTC) if dt.tzinfo else dt.replace(tzinfo=UTC)
         except (ValueError, TypeError):
             pass
 
@@ -221,7 +220,7 @@ def _validate(raw: RawArticle, source: Source) -> Article | None:
             canonical_url=canonical,
             source_id=raw.source_id,
             source_tier=source.tier,
-            published_at=raw.published_at or datetime.now(timezone.utc),
+            published_at=raw.published_at or datetime.now(UTC),
             description=raw.description,
         )
     except Exception as e:

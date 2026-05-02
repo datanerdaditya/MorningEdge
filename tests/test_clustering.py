@@ -1,10 +1,8 @@
 """Tests for the narrative clustering layer."""
 
 import numpy as np
-import pytest
 
 from morningedge.aggregation.clustering import (
-    ClusterAssignment,
     cluster_within_asset_class,
 )
 

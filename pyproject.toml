@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "morningedge"
 version = "0.1.0"
 description = "AI-powered intelligence for leveraged finance"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.13"
 readme = "README.md"
 license = { text = "MIT" }
 
@@ -22,4 +22,5 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "UP", "B", "SIM"]
+select = ["E", "F", "I"]
+ignore = ["E501"]

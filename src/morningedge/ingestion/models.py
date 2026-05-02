@@ -17,13 +17,13 @@ Design notes
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 
-class SourceTier(str, Enum):
+class SourceTier(StrEnum):
     """Quality tier of a news source.
 
     Used downstream to weight aggregate sentiment scores — a Reuters
@@ -64,7 +64,7 @@ class Article(BaseModel):
     source_tier: SourceTier
     published_at: datetime
     description: str | None = None
-    fetched_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     @field_validator("title", mode="before")
     @classmethod
@@ -79,8 +79,8 @@ class Article(BaseModel):
     def _ensure_utc(cls, v: datetime) -> datetime:
         """All timestamps in MorningEdge are stored as UTC. No exceptions."""
         if v.tzinfo is None:
-            return v.replace(tzinfo=timezone.utc)
-        return v.astimezone(timezone.utc)
+            return v.replace(tzinfo=UTC)
+        return v.astimezone(UTC)
 
 
 def make_article_id(canonical_url: str) -> str:
