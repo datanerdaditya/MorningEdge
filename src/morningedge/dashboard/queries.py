@@ -169,3 +169,162 @@ def regime_label(avg_sentiment: float) -> str:
     if avg_sentiment < -0.15:
         return "Risk-Off"
     return "Mixed"
+
+# ---------------------------------------------------------------------------
+# Drill-down queries (Day 11)
+# ---------------------------------------------------------------------------
+
+
+def sentiment_timeline_for_class(asset_class_id: str, days_back: int = 7) -> pd.DataFrame:
+    """Daily average sentiment for one asset class. Used for the line chart."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT DATE(a.published_at) AS day,
+                   AVG(a.sentiment_score) AS avg_sentiment,
+                   COUNT(*) AS n_articles
+            FROM articles a
+            JOIN routings r ON a.article_id = r.article_id
+            WHERE r.asset_class = ?
+              AND a.enriched_at IS NOT NULL
+              AND a.published_at >= ?
+            GROUP BY 1
+            ORDER BY 1
+            """,
+            [asset_class_id, cutoff],
+        ).fetchall()
+        cols = [d[0] for d in conn.description]
+        return pd.DataFrame(rows, columns=cols)
+
+
+def top_entities_for_class(
+    asset_class_id: str,
+    days_back: int = 2,
+    label_filter: list[str] | None = None,
+    limit: int = 20,
+) -> pd.DataFrame:
+    """Most-mentioned entities in articles routed to one asset class.
+
+    DuckDB lets us crack the JSON 'entities' column inline. We expand
+    each entity to its own row, then group + count.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    label_clause = ""
+    params = [asset_class_id, cutoff]
+    if label_filter:
+        placeholders = ",".join("?" * len(label_filter))
+        label_clause = f"AND label IN ({placeholders})"
+        params.extend(label_filter)
+    params.append(limit)
+
+    with connect() as conn:
+        rows = conn.execute(
+            f"""
+            WITH expanded AS (
+                SELECT a.article_id,
+                       a.sentiment_score,
+                       UNNEST(json_extract(a.entities, '$[*]')) AS ent_json
+                FROM articles a
+                JOIN routings r ON a.article_id = r.article_id
+                WHERE r.asset_class = ?
+                  AND a.entities IS NOT NULL
+                  AND a.published_at >= ?
+            ),
+            parsed AS (
+                SELECT article_id,
+                       sentiment_score,
+                       json_extract_string(ent_json, '$.text')  AS entity_text,
+                       json_extract_string(ent_json, '$.label') AS label
+                FROM expanded
+            )
+            SELECT entity_text AS entity,
+                   label,
+                   COUNT(*) AS mentions,
+                   ROUND(AVG(sentiment_score), 3) AS avg_sentiment
+            FROM parsed
+            WHERE entity_text IS NOT NULL
+              {label_clause}
+            GROUP BY 1, 2
+            ORDER BY mentions DESC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+        cols = [d[0] for d in conn.description]
+        return pd.DataFrame(rows, columns=cols)
+
+
+def event_breakdown_for_class(asset_class_id: str, days_back: int = 2) -> pd.DataFrame:
+    """Distribution of event types within one asset class."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT a.event_type,
+                   COUNT(*) AS n,
+                   ROUND(AVG(a.sentiment_score), 3) AS avg_sentiment
+            FROM articles a
+            JOIN routings r ON a.article_id = r.article_id
+            WHERE r.asset_class = ?
+              AND a.event_type IS NOT NULL
+              AND a.published_at >= ?
+            GROUP BY 1
+            ORDER BY n DESC
+            """,
+            [asset_class_id, cutoff],
+        ).fetchall()
+        cols = [d[0] for d in conn.description]
+        return pd.DataFrame(rows, columns=cols)
+
+
+def global_top_entities(
+    days_back: int = 2,
+    label_filter: list[str] | None = None,
+    limit: int = 25,
+) -> pd.DataFrame:
+    """Top entities across all asset classes."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    label_clause = ""
+    params: list = [cutoff]
+    if label_filter:
+        placeholders = ",".join("?" * len(label_filter))
+        label_clause = f"AND label IN ({placeholders})"
+        params.extend(label_filter)
+    params.append(limit)
+
+    with connect() as conn:
+        rows = conn.execute(
+            f"""
+            WITH expanded AS (
+                SELECT article_id,
+                       sentiment_score,
+                       UNNEST(json_extract(entities, '$[*]')) AS ent_json
+                FROM articles
+                WHERE entities IS NOT NULL
+                  AND published_at >= ?
+            ),
+            parsed AS (
+                SELECT article_id,
+                       sentiment_score,
+                       json_extract_string(ent_json, '$.text')  AS entity_text,
+                       json_extract_string(ent_json, '$.label') AS label
+                FROM expanded
+            )
+            SELECT entity_text AS entity,
+                   label,
+                   COUNT(*) AS mentions,
+                   ROUND(AVG(sentiment_score), 3) AS avg_sentiment
+            FROM parsed
+            WHERE entity_text IS NOT NULL
+              {label_clause}
+            GROUP BY 1, 2
+            ORDER BY mentions DESC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+        cols = [d[0] for d in conn.description]
+        return pd.DataFrame(rows, columns=cols)

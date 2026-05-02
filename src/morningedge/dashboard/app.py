@@ -2,13 +2,11 @@
 
 Run with:
     streamlit run src/morningedge/dashboard/app.py
-
-Day 10 focuses on the visual frame: regime banner + hero/macro/breadth
-asset class summaries + a simple narrative feed. Day 11 adds drill-down.
 """
 
 from __future__ import annotations
 
+import html as _html
 import sys
 from pathlib import Path
 
@@ -25,6 +23,10 @@ from morningedge.dashboard.queries import (
     top_narrative_for_class,
 )
 from morningedge.dashboard.styling import CSS, sentiment_color
+from morningedge.dashboard.views import (
+    render_asset_class_detail,
+    render_entities_page,
+)
 from morningedge.taxonomy import TAXONOMY, by_tier
 
 
@@ -32,12 +34,11 @@ from morningedge.taxonomy import TAXONOMY, by_tier
 # Page setup
 # ---------------------------------------------------------------------------
 
-
 st.set_page_config(
     page_title="MorningEdge",
     page_icon="📈",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 st.markdown(CSS, unsafe_allow_html=True)
 
@@ -68,58 +69,12 @@ def cached_recent_narratives(limit: int = 10):
 
 
 # ---------------------------------------------------------------------------
-# Sidebar — global controls
-# ---------------------------------------------------------------------------
-
-with st.sidebar:
-    st.markdown("### Settings")
-    days_back = st.slider("Lookback window (days)", 1, 7, 2)
-    st.caption(f"Showing data from the last {days_back} day(s).")
-    st.markdown("---")
-    st.caption("MorningEdge v0.1 · Built by Aditya")
-
-
-# ---------------------------------------------------------------------------
-# Header
-# ---------------------------------------------------------------------------
-
-st.markdown("# MorningEdge")
-st.markdown(
-    "<p class='me-tagline'>An AI-powered morning brief for the leveraged loans and private credit market.</p>",
-    unsafe_allow_html=True,
-)
-
-
-# ---------------------------------------------------------------------------
-# Regime banner
-# ---------------------------------------------------------------------------
-
-overall = cached_overall(days_back=days_back)
-regime = regime_label(overall["avg_sentiment"])
-sent_color = sentiment_color(overall["avg_sentiment"])
-
-c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
-c1.metric("Regime", regime)
-c2.metric("Avg Sentiment", f"{overall['avg_sentiment']:+.2f}")
-c3.metric("Articles", overall["n_articles"])
-c4.metric("Positive / Negative", f"{overall['n_positive']} / {overall['n_negative']}")
-
-
-# ---------------------------------------------------------------------------
-# Asset class tiles
+# Card renderer (shared on the Overview page)
 # ---------------------------------------------------------------------------
 
 
 def _render_class_card(summary: dict) -> None:
-    """One asset class tile.
-
-    We build the card as a single HTML string in one ``st.markdown`` call.
-    Streamlit's parser bails out on multi-block HTML when content has
-    certain leading whitespace patterns, so we render compact and escape
-    any dynamic text that might contain HTML-special characters.
-    """
-    import html as _html
-
+    """One asset class tile."""
     color = sentiment_color(summary["avg_sentiment"])
     narrative = cached_top_narratives(summary["asset_class_id"])
 
@@ -160,59 +115,99 @@ def _render_class_card(summary: dict) -> None:
     st.markdown("".join(parts), unsafe_allow_html=True)
 
 
-summaries = {s["asset_class_id"]: s for s in cached_classes(days_back=days_back)}
-
-
-# --- Hero tier ---
-st.markdown("## Hero — Leveraged Finance & Private Credit")
-hero_cols = st.columns(4)
-for col, ac in zip(hero_cols, by_tier("hero")):
-    with col:
-        _render_class_card(summaries[ac.id])
-
-
-# --- Macro tier ---
-st.markdown("## Macro Context")
-macro_cols = st.columns(3)
-for col, ac in zip(macro_cols, by_tier("macro")):
-    with col:
-        _render_class_card(summaries[ac.id])
-
-
-# --- Breadth tier (collapsible) ---
-with st.expander("Breadth — Sectors, Regions, Commodities, FX", expanded=False):
-    breadth = by_tier("breadth")
-    # 4 per row
-    for i in range(0, len(breadth), 4):
-        row = breadth[i : i + 4]
-        cols = st.columns(4)
-        for col, ac in zip(cols, row):
-            with col:
-                _render_class_card(summaries[ac.id])
-
-
 # ---------------------------------------------------------------------------
-# Recent narratives feed
+# Sidebar — global controls + page routing
 # ---------------------------------------------------------------------------
 
 
-st.markdown("## Recent Narratives")
-narr_df = cached_recent_narratives(limit=15)
+with st.sidebar:
+    st.markdown("### Navigate")
 
-import html as _html
+    page = st.radio(
+        "View",
+        ["Overview", "Asset Class Detail", "Entities"],
+        label_visibility="collapsed",
+    )
 
-if narr_df.empty:
-    st.info("No narratives yet. Run `python scripts/cluster_narratives.py`.")
+    selected_class_id = None
+    if page == "Asset Class Detail":
+        labels = [f"{ac.label}  ·  {ac.tier}" for ac in TAXONOMY]
+        chosen = st.selectbox("Choose an asset class", labels)
+        idx = labels.index(chosen)
+        selected_class_id = TAXONOMY[idx].id
+
+    st.markdown("---")
+    st.markdown("### Settings")
+    days_back = st.slider("Lookback window (days)", 1, 7, 2)
+    st.caption(f"Showing data from the last {days_back} day(s).")
+    st.markdown("---")
+    st.caption("MorningEdge v0.1 · Built by Aditya")
+
+
+# ---------------------------------------------------------------------------
+# Page routing
+# ---------------------------------------------------------------------------
+
+
+if page == "Asset Class Detail" and selected_class_id:
+    render_asset_class_detail(selected_class_id, days_back=days_back)
+
+elif page == "Entities":
+    render_entities_page(days_back=days_back)
+
 else:
-    for _, n in narr_df.iterrows():
-        meta = f"{_html.escape(str(n['asset_class']))} &middot; {n['article_count']} articles &middot; {n['narrative_date']}"
-        title = _html.escape(str(n["title"]))
-        summary_text = _html.escape(str(n["summary"]))
-        st.markdown(
-            "<div class='me-card'>"
-            f"<div class='me-card-meta'>{meta}</div>"
-            f"<div class='me-card-title'>{title}</div>"
-            f"<div style='color:#9AA0A8; font-size:0.95rem;'>{summary_text}</div>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
+    # ----------------------- OVERVIEW -----------------------
+    st.markdown("# MorningEdge")
+    st.markdown(
+        "<p class='me-tagline'>An AI-powered morning brief for the leveraged loans and private credit market.</p>",
+        unsafe_allow_html=True,
+    )
+
+    overall = cached_overall(days_back=days_back)
+    regime = regime_label(overall["avg_sentiment"])
+
+    c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
+    c1.metric("Regime", regime)
+    c2.metric("Avg Sentiment", f"{overall['avg_sentiment']:+.2f}")
+    c3.metric("Articles", overall["n_articles"])
+    c4.metric("Positive / Negative", f"{overall['n_positive']} / {overall['n_negative']}")
+
+    summaries = {s["asset_class_id"]: s for s in cached_classes(days_back=days_back)}
+
+    # Hero tier
+    st.markdown("## Hero — Leveraged Finance & Private Credit")
+    hero_cols = st.columns(4)
+    for col, ac in zip(hero_cols, by_tier("hero")):
+        with col:
+            _render_class_card(summaries[ac.id])
+
+    # Macro tier
+    st.markdown("## Macro Context")
+    macro_cols = st.columns(3)
+    for col, ac in zip(macro_cols, by_tier("macro")):
+        with col:
+            _render_class_card(summaries[ac.id])
+
+    # Breadth tier (collapsible)
+    with st.expander("Breadth — Sectors, Regions, Commodities, FX", expanded=False):
+        breadth = by_tier("breadth")
+        for i in range(0, len(breadth), 4):
+            row = breadth[i : i + 4]
+            cols = st.columns(4)
+            for col, ac in zip(cols, row):
+                with col:
+                    _render_class_card(summaries[ac.id])
+
+    # Recent narratives
+    st.markdown("## Recent Narratives")
+    narr_df = cached_recent_narratives(limit=15)
+
+    if narr_df.empty:
+        st.info("No narratives yet. Run `python scripts/cluster_narratives.py`.")
+    else:
+        for _, n in narr_df.iterrows():
+            meta = (
+                f"{_html.escape(str(n['asset_class']))} &middot; "
+                f"{n['article_count']} articles &middot; {n['narrative_date']}"
+            )
+            title = _html.escape(str(n["title"]))
