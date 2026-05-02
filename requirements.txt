@@ -17,6 +17,7 @@ torch>=2.2.0              # required by transformers
 sentence-transformers>=2.7.0  # embeddings for routing/clustering
 hdbscan>=0.8.33           # narrative clustering
 scikit-learn>=1.4.0       # cosine similarity, etc.
+gliner>=0.2.0
 
 # --- LLM (Gemini) ---
 google-genai>=1.0.0
