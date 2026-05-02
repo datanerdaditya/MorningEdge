@@ -15,6 +15,11 @@ Steps:
     7. (Week 3+) Cluster, generate brief.
 """
 
+# TODO(Week 4): persist article embeddings during enrichment pass.
+# Currently embeddings only get written during fuzzy dedup compare-step,
+# leaving most articles with NULL embedding. Fix: in the enrich block,
+# call embed_texts() and persist to articles.embedding.
+
 from __future__ import annotations
 
 import sys

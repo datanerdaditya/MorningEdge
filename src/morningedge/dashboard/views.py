@@ -234,3 +234,108 @@ def _render_entity_table(df: pd.DataFrame) -> None:
     )
     display_df.columns = ["Entity", "Type", "Mentions", "Avg Sentiment"]
     st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+    # ---------------------------------------------------------------------------
+# RAG chat page (Day 12)
+# ---------------------------------------------------------------------------
+
+
+def render_chat_page(lookback_days: int = 7) -> None:
+    """Conversational interface over the MorningEdge corpus."""
+    import html as _html_mod
+
+    from morningedge.delivery.chat import answer_stream
+
+    st.markdown("# Ask MorningEdge")
+    st.markdown(
+        "<p class='me-tagline'>"
+        "Ask anything about the credit news in your database. Answers are grounded "
+        "in real articles — every claim is cited."
+        "</p>",
+        unsafe_allow_html=True,
+    )
+
+    # --- Sample questions to seed the user ---
+    samples = [
+        "What's the latest on private credit?",
+        "Why is rates sentiment positive today?",
+        "Are there any defaults or distressed stories?",
+        "What's happening with the Fed and ECB?",
+        "Any major M&A activity this week?",
+    ]
+    st.caption("Try one of these:")
+    sample_cols = st.columns(len(samples))
+    for col, q in zip(sample_cols, samples):
+        if col.button(q, key=f"sample_{q}", use_container_width=True):
+            st.session_state.pending_question = q
+
+    # --- Initialise chat history ---
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []   # list of {"role", "content", "sources"}
+    if "pending_question" not in st.session_state:
+        st.session_state.pending_question = None
+
+    # --- Render existing history ---
+    for turn in st.session_state.chat_history:
+        with st.chat_message(turn["role"]):
+            st.markdown(turn["content"])
+            if turn.get("sources"):
+                with st.expander(f"Sources ({len(turn['sources'])})"):
+                    for i, s in enumerate(turn["sources"], start=1):
+                        date_str = s["published_at"].strftime("%Y-%m-%d") if s["published_at"] else "n/a"
+                        st.markdown(
+                            f"**[{i}]** [{_html_mod.escape(s['title'])}]({s['canonical_url']})  \n"
+                            f"_{s['source_id']} · {date_str} · "
+                            f"sim {s['similarity']:.2f}_"
+                        )
+
+    # --- Input box (or pending sample question) ---
+    user_q = st.chat_input("Ask a question...")
+    if st.session_state.pending_question and not user_q:
+        user_q = st.session_state.pending_question
+        st.session_state.pending_question = None
+
+    if user_q:
+        # Append user turn
+        st.session_state.chat_history.append(
+            {"role": "user", "content": user_q, "sources": []}
+        )
+        with st.chat_message("user"):
+            st.markdown(user_q)
+
+        # Stream the assistant's answer
+        with st.chat_message("assistant"):
+            placeholder = st.empty()
+            with st.spinner("Searching the corpus..."):
+                stream, articles = answer_stream(user_q, lookback_days=lookback_days)
+
+            full_text = ""
+            for chunk in stream:
+                full_text += chunk
+                placeholder.markdown(full_text + "▌")
+            placeholder.markdown(full_text)
+
+            # Show sources inline
+            if articles:
+                with st.expander(f"Sources ({len(articles)})"):
+                    for i, a in enumerate(articles, start=1):
+                        date_str = a.published_at.strftime("%Y-%m-%d") if a.published_at else "n/a"
+                        st.markdown(
+                            f"**[{i}]** [{_html_mod.escape(a.title)}]({a.canonical_url})  \n"
+                            f"_{a.source_id} · {date_str} · sim {a.similarity:.2f}_"
+                        )
+
+        # Persist into history (with serialisable sources)
+        sources_serialised = [
+            {
+                "title": a.title,
+                "canonical_url": a.canonical_url,
+                "source_id": a.source_id,
+                "published_at": a.published_at,
+                "similarity": a.similarity,
+            }
+            for a in articles
+        ]
+        st.session_state.chat_history.append(
+            {"role": "assistant", "content": full_text, "sources": sources_serialised}
+        )

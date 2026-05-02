@@ -128,8 +128,15 @@ def _recent_titles_with_embeddings(
     return list(titles), matrix
 
 
-def _decode_embedding(json_value: list) -> np.ndarray:
-    """DuckDB returns JSON as a Python list — convert to a numpy vector."""
+def _decode_embedding(json_value) -> np.ndarray:
+    """Decode an embedding from DuckDB JSON storage.
+
+    DuckDB returns the JSON column as a string in current versions; older
+    versions returned a parsed Python list. Handle both.
+    """
+    import json
+    if isinstance(json_value, str):
+        json_value = json.loads(json_value)
     return np.asarray(json_value, dtype=np.float32)
 
 

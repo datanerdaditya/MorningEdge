@@ -129,6 +129,22 @@ CSS = f"""
     margin-bottom: 0.6rem;
   }}
 
+  /* Force sidebar always visible — work around Streamlit collapse-arrow bug */
+  [data-testid="stSidebar"] {{
+    min-width: 280px !important;
+    max-width: 280px !important;
+  }}
+
+  [data-testid="stSidebarCollapseButton"],
+  button[kind="header"][data-testid="stBaseButton-header"] {{
+    display: none !important;
+  }}
+
+  /* Reclaim the space — main content shouldn't have a button-shaped gap */
+  [data-testid="stSidebarCollapsedControl"] {{
+    display: none !important;
+  }}
+
   .me-positive {{ color: {POSITIVE} !important; }}
   .me-negative {{ color: {NEGATIVE} !important; }}
   .me-neutral  {{ color: {NEUTRAL} !important; }}
