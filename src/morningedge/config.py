@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     finnhub_api_key: str = Field(default="")
     marketaux_api_key: str = Field(default="")
 
+    # --- HuggingFace (optional, helps with rate limits on model downloads) ---
+    huggingface_hub_token: str = Field(default="", alias="HUGGINGFACE_HUB_TOKEN")
+
     # --- Storage ---
     duckdb_path: Path = Field(default=Path("data/morningedge.duckdb"))
 

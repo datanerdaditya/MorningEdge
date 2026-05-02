@@ -153,3 +153,121 @@ def _article_to_row(a: Article) -> tuple:
         a.published_at,
         a.fetched_at,
     )
+
+# ---------------------------------------------------------------------------
+# Enrichment persistence (Week 2)
+# ---------------------------------------------------------------------------
+
+
+def get_unenriched_articles(
+    limit: int = 500,
+    db_path: Path | None = None,
+) -> list[dict]:
+    """Return articles that haven't been enriched yet (enriched_at IS NULL)."""
+    with connect(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT article_id, title, description, source_id, source_tier
+            FROM articles
+            WHERE enriched_at IS NULL
+            ORDER BY published_at DESC
+            LIMIT ?
+            """,
+            [limit],
+        ).fetchall()
+        cols = [desc[0] for desc in conn.description]
+        return [dict(zip(cols, row)) for row in rows]
+
+
+def write_enrichments(
+    enrichments: list[dict],
+    db_path: Path | None = None,
+) -> int:
+    """Bulk-write enrichment fields onto existing articles.
+
+    Each dict in ``enrichments`` should look like:
+        {
+            "article_id": str,
+            "sentiment_score": float | None,
+            "sentiment_label": str | None,
+            "event_type": str | None,
+            "entities": list[dict] | None,
+        }
+
+    Routings live in their own table — write them via ``write_routings``.
+    """
+    import json
+    from datetime import datetime, timezone
+
+    if not enrichments:
+        return 0
+
+    now = datetime.now(timezone.utc)
+
+    with connect(db_path) as conn:
+        for e in enrichments:
+            conn.execute(
+                """
+                UPDATE articles
+                SET sentiment_score = ?,
+                    sentiment_label = ?,
+                    event_type      = ?,
+                    entities        = ?,
+                    enriched_at     = ?
+                WHERE article_id = ?
+                """,
+                [
+                    e.get("sentiment_score"),
+                    e.get("sentiment_label"),
+                    e.get("event_type"),
+                    json.dumps(e.get("entities") or []),
+                    now,
+                    e["article_id"],
+                ],
+            )
+    return len(enrichments)
+
+
+def write_routings(
+    routings_by_article: dict[str, list[dict]],
+    db_path: Path | None = None,
+) -> int:
+    """Write routings to the ``routings`` table.
+
+    ``routings_by_article`` maps article_id -> list of {asset_class_id, score}.
+    Existing routings for the article are deleted first (idempotent re-runs).
+    """
+    if not routings_by_article:
+        return 0
+
+    total_inserted = 0
+    with connect(db_path) as conn:
+        for article_id, routings in routings_by_article.items():
+            conn.execute(
+                "DELETE FROM routings WHERE article_id = ?",
+                [article_id],
+            )
+            for r in routings:
+                conn.execute(
+                    """
+                    INSERT INTO routings (article_id, asset_class, score)
+                    VALUES (?, ?, ?)
+                    """,
+                    [article_id, r["asset_class_id"], r["score"]],
+                )
+                total_inserted += 1
+    return total_inserted
+
+
+def count_enriched(db_path: Path | None = None) -> tuple[int, int]:
+    """Return (enriched_count, total_count) for monitoring progress."""
+    with connect(db_path) as conn:
+        row = conn.execute(
+            """
+            SELECT
+                COUNT(*) FILTER (WHERE enriched_at IS NOT NULL) AS enriched,
+                COUNT(*) AS total
+            FROM articles
+            """
+        ).fetchone()
+        return (row[0], row[1])

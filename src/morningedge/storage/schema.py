@@ -51,7 +51,10 @@ CREATE TABLE IF NOT EXISTS articles (
     cluster_id      VARCHAR,        -- HDBSCAN cluster, or NULL if noise
 
     -- Populated in Week 2 by enrichment/router.py (cached for performance)
-    embedding       JSON            -- sentence-transformer vector as JSON array
+    embedding       JSON,           -- sentence-transformer vector as JSON array
+
+    -- Populated in Week 2 by enrichment pipeline (NULL = not yet enriched)
+    enriched_at     TIMESTAMP
 );
 """
 
