@@ -271,3 +271,148 @@ def count_enriched(db_path: Path | None = None) -> tuple[int, int]:
             """
         ).fetchone()
         return (row[0], row[1])
+    
+    # ---------------------------------------------------------------------------
+# Narrative persistence (Day 9)
+# ---------------------------------------------------------------------------
+
+
+def write_cluster_assignments(
+    assignments: list,  # list of ClusterAssignment
+    db_path: Path | None = None,
+) -> int:
+    """Update articles with their cluster_id for the *primary* (top-routing) asset class.
+
+    Each article keeps one cluster_id per the table schema. We pick the
+    cluster from the article's highest-confidence asset class.
+    """
+    if not assignments:
+        return 0
+
+    # Group assignments by article — same article can appear in multiple
+    # asset_class clusterings; keep them all so the dashboard can browse by class.
+    # But the articles.cluster_id column is single-valued — we'll write the
+    # one from the article's *primary* (highest-confidence) routing.
+    with connect(db_path) as conn:
+        # Build (article_id, cluster_id) pairs preferring the cluster from the
+        # article's top routing.
+        article_to_top_cluster: dict[str, str] = {}
+
+        # Look up each article's top routing
+        article_ids = list({a.article_id for a in assignments})
+        if not article_ids:
+            return 0
+
+        rows = conn.execute(
+            f"""
+            SELECT article_id, asset_class
+            FROM (
+                SELECT article_id, asset_class,
+                       ROW_NUMBER() OVER (PARTITION BY article_id ORDER BY score DESC) AS rn
+                FROM routings
+                WHERE article_id IN ({','.join('?' * len(article_ids))})
+            )
+            WHERE rn = 1
+            """,
+            article_ids,
+        ).fetchall()
+        top_class_by_article = dict(rows)
+
+        for a in assignments:
+            top_class = top_class_by_article.get(a.article_id)
+            if a.asset_class == top_class:
+                article_to_top_cluster[a.article_id] = a.cluster_id
+
+        for aid, cid in article_to_top_cluster.items():
+            conn.execute(
+                "UPDATE articles SET cluster_id = ? WHERE article_id = ?",
+                [cid, aid],
+            )
+
+    return len(article_to_top_cluster)
+
+
+def write_narratives(
+    narratives: list[dict],
+    db_path: Path | None = None,
+) -> int:
+    """Insert narrative rows. ``narratives`` is a list of dicts with keys:
+    narrative_id, narrative_date, cluster_id, asset_class, title, summary, article_count.
+    """
+    if not narratives:
+        return 0
+
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+
+    with connect(db_path) as conn:
+        # Drop any existing narratives for these cluster_ids — idempotent re-runs
+        cluster_ids = list({n["cluster_id"] for n in narratives})
+        if cluster_ids:
+            conn.execute(
+                f"DELETE FROM narratives WHERE cluster_id IN ({','.join('?' * len(cluster_ids))})",
+                cluster_ids,
+            )
+
+        for n in narratives:
+            conn.execute(
+                """
+                INSERT INTO narratives (
+                    narrative_id, narrative_date, cluster_id, asset_class,
+                    title, summary, article_count, computed_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    n["narrative_id"],
+                    n["narrative_date"],
+                    n["cluster_id"],
+                    n["asset_class"],
+                    n["title"],
+                    n["summary"],
+                    n["article_count"],
+                    now,
+                ],
+            )
+    return len(narratives)
+
+
+def get_articles_for_clustering(
+    days_back: int = 2,
+    db_path: Path | None = None,
+) -> list[dict]:
+    """Pull recent articles + their routings for clustering.
+
+    Returns list of dicts with: article_id, title, description, routings (list).
+    """
+    from datetime import datetime, timedelta, timezone
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+
+    with connect(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT a.article_id, a.title, a.description,
+                   r.asset_class, r.score
+            FROM articles a
+            JOIN routings r ON a.article_id = r.article_id
+            WHERE a.published_at >= ?
+            ORDER BY a.article_id
+            """,
+            [cutoff],
+        ).fetchall()
+
+    # Group by article_id
+    grouped: dict[str, dict] = {}
+    for aid, title, desc, asset_class, score in rows:
+        if aid not in grouped:
+            grouped[aid] = {
+                "article_id": aid,
+                "title": title,
+                "description": desc,
+                "routings": [],
+            }
+        grouped[aid]["routings"].append({"asset_class": asset_class, "score": float(score)})
+
+    return list(grouped.values())
