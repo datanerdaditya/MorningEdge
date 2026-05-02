@@ -30,9 +30,10 @@ TAXONOMY: list[AssetClass] = [
         label="Leveraged Loans",
         tier="hero",
         description=(
-            "Senior secured leveraged loans, broadly syndicated loans (BSL), "
-            "LSTA loan index, repricings, refinancings, primary issuance, "
-            "loan defaults, and recovery rates."
+            "Senior secured leveraged loans and broadly syndicated loans (BSL). "
+            "LSTA loan index movements, primary market issuance, repricings, "
+            "refinancings, loan defaults and recovery rates. Term loan B markets "
+            "and institutional loan supply."
         ),
     ),
     AssetClass(
@@ -40,9 +41,10 @@ TAXONOMY: list[AssetClass] = [
         label="Private Credit",
         tier="hero",
         description=(
-            "Direct lending, private debt funds, BDCs, dry powder, fundraising, "
-            "covenant trends, fund launches, unitranche financing, and "
-            "non-bank lending to middle-market and large-cap borrowers."
+            "Direct lending and private debt funds. BDCs (business development "
+            "companies), unitranche financing, dry powder, fundraising for credit "
+            "funds, covenant trends, and non-bank lending to middle-market "
+            "and large-cap borrowers. Apollo, Blackstone, Ares, KKR credit arms."
         ),
     ),
     AssetClass(
@@ -50,9 +52,9 @@ TAXONOMY: list[AssetClass] = [
         label="CLOs",
         tier="hero",
         description=(
-            "Collateralised loan obligations, CLO issuance, CLO equity, "
-            "warehouse facilities, AAA spreads, refinancing/resets, "
-            "and middle-market CLOs."
+            "Collateralised loan obligations. CLO primary market issuance, "
+            "CLO equity arbitrage, warehouse facilities, AAA tranche spreads, "
+            "CLO refinancing and resets, middle-market CLOs."
         ),
     ),
     AssetClass(
@@ -60,8 +62,9 @@ TAXONOMY: list[AssetClass] = [
         label="High Yield Bonds",
         tier="hero",
         description=(
-            "High yield corporate bonds, junk debt, fallen angels, rising stars, "
-            "HY spreads vs Treasuries, and HY mutual fund flows."
+            "High yield corporate bonds and junk debt. HY spreads versus "
+            "Treasuries, fallen angels, rising stars, distressed exchanges, "
+            "and high yield mutual fund flows."
         ),
     ),
     # --- MACRO: drivers of credit ---
@@ -70,8 +73,11 @@ TAXONOMY: list[AssetClass] = [
         label="Rates",
         tier="macro",
         description=(
-            "Federal Reserve, ECB, Bank of England policy rates, yield curve, "
-            "Treasury auctions, inflation prints, and central bank communication."
+            "Interest rate decisions and central bank monetary policy. "
+            "The Fed cuts or hikes rates by basis points. FOMC meetings, "
+            "Federal Reserve policy. ECB and Bank of England rate moves. "
+            "Yield curve, Treasury yields, government bond markets, "
+            "inflation prints CPI and PCE, and central bank communication."
         ),
     ),
     AssetClass(
@@ -79,8 +85,9 @@ TAXONOMY: list[AssetClass] = [
         label="Banks & Financials",
         tier="macro",
         description=(
-            "Large commercial and investment banks, distressed debt activity, "
-            "loan loss provisions, regional banks, and lender earnings."
+            "Commercial and investment banks. Loan loss provisions, net interest "
+            "margins, regional bank stress, deposit flight, bank earnings, "
+            "distressed debt activity at lenders, and banking regulation."
         ),
     ),
     AssetClass(
@@ -88,8 +95,9 @@ TAXONOMY: list[AssetClass] = [
         label="Equity Risk Signal",
         tier="macro",
         description=(
-            "Broad equity indices as a risk-on/risk-off proxy — S&P 500, "
-            "VIX, large drawdowns, and major earnings surprises."
+            "Broad equity market direction as a risk-on/risk-off proxy. "
+            "S&P 500 index moves, VIX volatility spikes, major market drawdowns, "
+            "and broad sell-offs or rallies that signal macro sentiment."
         ),
     ),
     # --- BREADTH: contextual coverage ---
@@ -97,49 +105,81 @@ TAXONOMY: list[AssetClass] = [
         id="tech",
         label="Tech Sector",
         tier="breadth",
-        description="Technology equities, semiconductors, AI capex, mega-cap tech earnings.",
+        description=(
+            "Semiconductor industry, AI infrastructure capital expenditure, "
+            "hyperscaler cloud spending, and large software platform companies. "
+            "NVIDIA, TSMC, Microsoft, Google, Apple, Meta, Amazon strategic moves."
+        ),
     ),
     AssetClass(
         id="energy",
         label="Energy Sector",
         tier="breadth",
-        description="Oil and gas equities, OPEC, crude prices, energy transition.",
+        description=(
+            "Oil and gas exploration and production, OPEC supply decisions, "
+            "crude oil price movements, refining margins, LNG, and the energy "
+            "transition impact on traditional fossil fuel companies."
+        ),
     ),
     AssetClass(
         id="healthcare",
         label="Healthcare Sector",
         tier="breadth",
-        description="Pharma, biotech, FDA actions, healthcare M&A.",
+        description=(
+            "Pharmaceutical drug approvals, FDA decisions, biotech clinical "
+            "trial results, healthcare merger and acquisition activity, "
+            "and pharma pipeline announcements."
+        ),
     ),
     AssetClass(
         id="us_macro",
         label="US Macro",
         tier="breadth",
-        description="US economic data, recession indicators, fiscal policy.",
+        description=(
+            "United States economic indicators. Non-farm payrolls, GDP growth, "
+            "ISM manufacturing, retail sales, recession indicators, fiscal "
+            "policy, debt ceiling, and Treasury issuance."
+        ),
     ),
     AssetClass(
         id="europe_macro",
         label="Europe Macro",
         tier="breadth",
-        description="Eurozone data, ECB, sovereign spreads, German and French growth.",
+        description=(
+            "Eurozone economic data, ECB policy stance, sovereign bond spreads "
+            "between core and periphery countries, German Bund yields, and "
+            "growth indicators for Germany, France, Italy, Spain."
+        ),
     ),
     AssetClass(
         id="asia_em",
         label="Asia & Emerging Markets",
         tier="breadth",
-        description="China, Japan, India, EM sovereign and corporate credit.",
+        description=(
+            "China economic data and property sector, Japan policy and yen, "
+            "India growth story, and emerging market sovereign bonds and "
+            "corporate credit including default and restructuring stories."
+        ),
     ),
     AssetClass(
         id="commodities",
         label="Commodities",
         tier="breadth",
-        description="Oil, gold, industrial metals, agricultural commodities.",
+        description=(
+            "Crude oil, natural gas, gold and precious metals, industrial "
+            "metals like copper and aluminium, and agricultural commodities "
+            "wheat corn soybeans."
+        ),
     ),
     AssetClass(
         id="fx",
         label="FX",
         tier="breadth",
-        description="USD, EUR, JPY, EM currencies, dollar funding stress.",
+        description=(
+            "Currency markets and foreign exchange. US dollar index DXY, "
+            "EUR USD, USD JPY, emerging market currencies, dollar funding "
+            "stress and currency intervention."
+        ),
     ),
 ]
 
