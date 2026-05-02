@@ -339,3 +339,57 @@ def render_chat_page(lookback_days: int = 7) -> None:
         st.session_state.chat_history.append(
             {"role": "assistant", "content": full_text, "sources": sources_serialised}
         )
+
+        # ---------------------------------------------------------------------------
+# Daily brief page (Day 13)
+# ---------------------------------------------------------------------------
+
+
+def render_brief_page() -> None:
+    """Today's morning brief, with a button to regenerate."""
+    from datetime import date as _date
+
+    from morningedge.delivery.brief import generate_brief, get_latest_brief
+
+    st.markdown("# Daily Brief")
+    st.markdown(
+        "<p class='me-tagline'>"
+        "A 90-second morning read. Written by Gemini Pro from MorningEdge's enriched data."
+        "</p>",
+        unsafe_allow_html=True,
+    )
+
+    col1, col2 = st.columns([1, 6])
+    with col1:
+        regenerate = st.button("Generate brief", type="primary")
+    with col2:
+        st.caption("Generates a new brief from today's data. Costs one Gemini Pro call.")
+
+    if regenerate:
+        with st.spinner("Drafting brief... (one Gemini Pro call)"):
+            try:
+                brief = generate_brief(days_back=2)
+                st.success("Brief generated.")
+            except Exception as e:
+                st.error(f"Brief generation failed: {e}")
+                return
+    else:
+        brief = get_latest_brief()
+
+    if brief is None:
+        st.info(
+            "No brief yet. Click **Generate brief** above, or run "
+            "`python scripts/generate_brief.py` from the terminal."
+        )
+        return
+
+    # --- Brief metadata strip ---
+    cm1, cm2, cm3 = st.columns(3)
+    cm1.metric("Date", str(brief.brief_date))
+    cm2.metric("Regime", brief.regime)
+    cm3.metric("Articles synthesised", brief.n_articles)
+
+    st.markdown("---")
+
+    # --- The brief itself ---
+    st.markdown(brief.body_markdown)

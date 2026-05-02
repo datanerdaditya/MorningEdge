@@ -125,7 +125,7 @@ with st.sidebar:
 
     page = st.radio(
         "View",
-        ["Overview", "Asset Class Detail", "Entities", "Ask MorningEdge"],
+        ["Overview", "Daily Brief", "Asset Class Detail", "Entities", "Ask MorningEdge"],
         label_visibility="collapsed",
     )
 
@@ -159,6 +159,10 @@ elif page == "Entities":
 elif page == "Ask MorningEdge":
     from morningedge.dashboard.views import render_chat_page
     render_chat_page(lookback_days=days_back)
+
+elif page == "Daily Brief":
+    from morningedge.dashboard.views import render_brief_page
+    render_brief_page()
 
 else:
     # ----------------------- OVERVIEW -----------------------

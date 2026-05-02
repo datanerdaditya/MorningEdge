@@ -92,6 +92,19 @@ CREATE TABLE IF NOT EXISTS narratives (
 );
 """
 
+BRIEFS_DDL = """
+CREATE TABLE IF NOT EXISTS briefs (
+    brief_date      DATE PRIMARY KEY,
+    headline        VARCHAR NOT NULL,        -- one-line summary
+    body_markdown   VARCHAR NOT NULL,        -- the full brief
+    regime          VARCHAR,                 -- 'Risk-On' | 'Risk-Off' | 'Mixed'
+    avg_sentiment   DOUBLE,
+    n_articles      INTEGER,
+    computed_at     TIMESTAMP NOT NULL,
+    model           VARCHAR
+);
+"""
+
 # Useful indexes for common query patterns
 INDEXES_DDL = [
     "CREATE INDEX IF NOT EXISTS idx_articles_published ON articles(published_at);",
@@ -108,5 +121,6 @@ ALL_DDL: list[str] = [
     ROUTINGS_DDL,
     DAILY_SCORES_DDL,
     NARRATIVES_DDL,
+    BRIEFS_DDL,
     *INDEXES_DDL,
 ]
