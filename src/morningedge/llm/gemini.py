@@ -48,32 +48,42 @@ _rate_lock = Lock()
 def _wait_for_quota(model: str) -> None:
     """Block until we can make another call to this model.
 
-    Sliding-window rate limiter: keeps timestamps of the last N calls
-    where N is the RPM limit, and waits if the oldest is less than
-    60 seconds ago.
+    Sliding-window rate limiter with minimum-spacing enforcement.
+    Calls are stamped into a deque; if we'd exceed the per-minute
+    limit, sleep until the oldest call falls outside the window.
     """
     if model not in RPM_LIMITS:
-        return  # not tracked
+        return
 
     limit = RPM_LIMITS[model]
     history = _call_history[model]
+    min_spacing = 60.0 / limit  # average spacing to honour limit/min
 
     with _rate_lock:
         now = time.monotonic()
-        # Drop timestamps older than 60s
+
+        # Drop expired timestamps
         while history and now - history[0] > 60:
             history.popleft()
 
+        # Sliding-window check
         if len(history) >= limit:
-            sleep_for = 60 - (now - history[0]) + 0.5  # small buffer
+            sleep_for = 60 - (now - history[0]) + 0.5
             logger.info(f"Rate limit on {model}: sleeping {sleep_for:.1f}s")
             time.sleep(sleep_for)
-            # After sleeping, drop expired again
             now = time.monotonic()
             while history and now - history[0] > 60:
                 history.popleft()
 
-        history.append(time.monotonic())
+        # Minimum-spacing check (prevents the burst-on-startup race)
+        if history:
+            since_last = now - history[-1]
+            if since_last < min_spacing:
+                gap = min_spacing - since_last
+                time.sleep(gap)
+                now = time.monotonic()
+
+        history.append(now)
 
 
 # ---------------------------------------------------------------------------
@@ -144,6 +154,8 @@ def call_gemini(
     config = None
     if response_json:
         config = {"response_mime_type": "application/json"}
+
+    _wait_for_quota(model)  # ← ADD THIS LINE
 
     try:
         response = client.models.generate_content(

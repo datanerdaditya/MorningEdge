@@ -22,6 +22,9 @@ Steps:
 
 from __future__ import annotations
 
+from morningedge.ingestion.dedup import embed_texts
+from morningedge.storage.db import persist_embeddings
+
 import sys
 from pathlib import Path
 
@@ -98,6 +101,12 @@ def main() -> int:
         routings_per = route_texts(full_texts)
         entities_per = extract_entities_batch(full_texts)
         events_per = classify_events_batch(full_texts)
+
+        # Persist embeddings — needed for the chat RAG layer
+        embeddings = embed_texts(full_texts)
+        article_ids_for_emb = [a["article_id"] for a in pending]
+        persist_embeddings(article_ids_for_emb, embeddings)
+        
 
         # --- Step 5b: pick top-N for Gemini rescore ---
         importance = []

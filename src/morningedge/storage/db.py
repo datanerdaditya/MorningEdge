@@ -413,3 +413,21 @@ def get_articles_for_clustering(
         grouped[aid]["routings"].append({"asset_class": asset_class, "score": float(score)})
 
     return list(grouped.values())
+
+def persist_embeddings(
+    article_ids: list[str],
+    embeddings,  # numpy array
+    db_path: Path | None = None,
+) -> int:
+    """Persist (article_id, embedding) pairs. Idempotent."""
+    import json
+    if len(article_ids) == 0:
+        return 0
+    with connect(db_path) as conn:
+        for aid, vec in zip(article_ids, embeddings, strict=True):
+            conn.execute(
+                "UPDATE articles SET embedding = ? WHERE article_id = ?",
+                [json.dumps(vec.tolist()), aid],
+            )
+    return len(article_ids)
+
